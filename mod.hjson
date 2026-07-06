@@ -1,0 +1,23 @@
+#the mod name as displayed in-game
+displayName: "AI Advisor"
+
+#the internal name of your mod
+name: "ai-advisor"
+
+#your name
+author: "nadeeshafdo.dev"
+
+#the fully qualified main class of the mod
+main: "advisor.AdvisorMod"
+
+#the mod description as seen in the mod dialog
+description: "A context-aware AI assistant powered by Gemini that provides real-time strategic advice based on your current game state."
+
+#the mod version (auto-replaced at build time from git tag)
+version: __VERSION__
+
+#the minimum game build required to run this mod
+minGameVersion: 154
+
+#this is a java mod
+java: true
