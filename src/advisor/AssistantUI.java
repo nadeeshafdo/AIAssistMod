@@ -193,7 +193,7 @@ public class AssistantUI {
         sb.append("Use this to help the player — never act without explaining why.\n\n");
         sb.append("Available commands:\n");
         sb.append("  spawn <unit> [amount]  — spawn units near core\n");
-        sb.append("  give <item> [amount]   — add items to core ('all' for every type)\n");
+        sb.append("  give <item> [amount]   — add items to core ('all' or '*' for every type)\n");
         sb.append("  setwave <number>       — set current wave\n");
         sb.append("  heal                   — heal all player units and core\n\n");
         sb.append("--- CURRENT GAME STATE ---\n");
@@ -270,16 +270,26 @@ public class AssistantUI {
         if (text == null || !text.contains("[!cmd]")) return text;
 
         StringBuilder cleaned = new StringBuilder(text);
+        int executed = 0;
         int start;
         while ((start = cleaned.indexOf("[!cmd]")) != -1) {
+            if (executed >= 5) {
+                cleaned.delete(start, cleaned.indexOf("[/cmd]", start) + 6);
+                continue;
+            }
             int end = cleaned.indexOf("[/cmd]", start);
             if (end == -1) break;
 
             String cmd = cleaned.substring(start + 6, end);
             cleaned.delete(start, end + 6);
 
-            String result = CommandHandler.execute(cmd);
-            addSystemMessage("[accent]!" + cmd + "[] -> " + result);
+            try {
+                String result = CommandHandler.execute(cmd);
+                addSystemMessage("[accent]!" + cmd.replace("\n", "\\n") + "[] -> " + result);
+            } catch (Exception e) {
+                addSystemMessage("[scarlet]!" + cmd.replace("\n", "\\n") + "[] -> Error: " + e.getMessage());
+            }
+            executed++;
         }
         return cleaned.toString();
     }

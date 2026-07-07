@@ -1,10 +1,8 @@
 package advisor;
 
 import arc.math.*;
-import arc.struct.*;
-import arc.util.*;
 import mindustry.*;
-import mindustry.content.*;
+import mindustry.game.*;
 import mindustry.gen.*;
 import mindustry.type.*;
 import mindustry.world.*;
@@ -60,7 +58,7 @@ public class CommandHandler {
         if (!canExecute()) return "Not in game.";
         if (parts.length < 2) return "Usage: give <itemName> [amount]";
 
-        boolean all = parts[1].equals("*") || parts[1].equals("all");
+        boolean all = parts[1].equals("*") || parts[1].equalsIgnoreCase("all");
         int amount = 1000;
         if (parts.length >= 3) {
             try { amount = Math.min(Math.max(Integer.parseInt(parts[2]), 1), 99999); }
