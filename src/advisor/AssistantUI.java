@@ -165,7 +165,8 @@ public class AssistantUI {
         mod.getClient().send(systemPrompt, history,
             response -> {
                 setWaiting(false);
-                addAIMessage(response);
+                String cleanText = processCommands(response);
+                addAIMessage(cleanText);
             },
             error -> {
                 setWaiting(false);
@@ -186,7 +187,15 @@ public class AssistantUI {
         sb.append("3. When suggesting builds, give specific quantities and placement advice.\n");
         sb.append("4. Prioritize immediate threats over long-term optimization.\n");
         sb.append("5. If you spot critical issues (no power, weak defenses, resource bottlenecks), flag them first.\n");
-        sb.append("6. Use Mindustry color markup sparingly for emphasis: [accent]important[], [scarlet]danger[]\n\n");
+        sb.append("6. Use Mindustry color markup sparingly for emphasis: [accent]important[], [scarlet]danger[]\n");
+        sb.append("7. You can execute in-game commands by wrapping them in [!cmd]...[/cmd] tags. ");
+        sb.append("This lets you spawn units, give resources, set waves, and heal. ");
+        sb.append("Use this to help the player — never act without explaining why.\n\n");
+        sb.append("Available commands:\n");
+        sb.append("  spawn <unit> [amount]  — spawn units near core\n");
+        sb.append("  give <item> [amount]   — add items to core ('all' for every type)\n");
+        sb.append("  setwave <number>       — set current wave\n");
+        sb.append("  heal                   — heal all player units and core\n\n");
         sb.append("--- CURRENT GAME STATE ---\n");
         sb.append(GameContext.collect());
         return sb.toString();
@@ -255,6 +264,24 @@ public class AssistantUI {
         text = text.replaceAll("(?m)^\\s*[*+-]\\s+", "  • ");
         
         return text;
+    }
+
+    private String processCommands(String text) {
+        if (text == null || !text.contains("[!cmd]")) return text;
+
+        StringBuilder cleaned = new StringBuilder(text);
+        int start;
+        while ((start = cleaned.indexOf("[!cmd]")) != -1) {
+            int end = cleaned.indexOf("[/cmd]", start);
+            if (end == -1) break;
+
+            String cmd = cleaned.substring(start + 6, end);
+            cleaned.delete(start, end + 6);
+
+            String result = CommandHandler.execute(cmd);
+            addSystemMessage("[accent]!" + cmd + "[] -> " + result);
+        }
+        return cleaned.toString();
     }
 
     private void rebuildMessages() {
