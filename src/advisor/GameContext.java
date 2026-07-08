@@ -25,6 +25,8 @@ public class GameContext {
         StringBuilder sb = new StringBuilder();
         sb.append("=== GAME STATE ===\n");
         appendGameInfo(sb);
+        sb.append("\n=== SIMULATION TIME ===\n");
+        appendGameTime(sb);
         sb.append("\n=== RESOURCES IN CORE ===\n");
         appendResources(sb);
         sb.append("\n=== BUILDINGS ===\n");
@@ -33,6 +35,10 @@ public class GameContext {
         appendUnits(sb);
         sb.append("\n=== POWER GRID ===\n");
         appendPower(sb);
+        sb.append("\n=== TECH TREE ===\n");
+        appendTechTree(sb);
+        sb.append("\n=== SECTOR ===\n");
+        appendSector(sb);
         return sb.toString();
     }
 
@@ -55,6 +61,58 @@ public class GameContext {
         if (team != null && team.core() != null) {
             Building core = team.core();
             sb.append("Core health: ").append(String.format("%.0f/%.0f", core.health, core.maxHealth)).append("\n");
+        }
+    }
+
+    private static void appendGameTime(StringBuilder sb) {
+        double tick = Vars.state.tick;
+        long totalSecs = (long)(tick / 60.0);
+        long mins = totalSecs / 60;
+        long secs = totalSecs % 60;
+        sb.append("Elapsed: ").append(mins).append("m ").append(secs).append("s (")
+          .append((long)tick).append(" ticks)\n");
+    }
+
+    private static void appendTechTree(StringBuilder sb) {
+        int unlockedBlocks = 0, totalBlocks = 0;
+        int unlockedUnits = 0, totalUnits = 0;
+        int unlockedItems = 0, totalItems = 0;
+        int unlockedLiquids = 0, totalLiquids = 0;
+
+        for (Block block : Vars.content.blocks()) {
+            totalBlocks++;
+            if (block.unlocked()) unlockedBlocks++;
+        }
+        for (UnitType type : Vars.content.units()) {
+            totalUnits++;
+            if (type.unlocked()) unlockedUnits++;
+        }
+        for (Item item : Vars.content.items()) {
+            totalItems++;
+            if (item.unlocked()) unlockedItems++;
+        }
+        for (Liquid liquid : Vars.content.liquids()) {
+            totalLiquids++;
+            if (liquid.unlocked()) unlockedLiquids++;
+        }
+
+        sb.append("Blocks: ").append(unlockedBlocks).append("/").append(totalBlocks).append("\n");
+        sb.append("Units: ").append(unlockedUnits).append("/").append(totalUnits).append("\n");
+        sb.append("Items: ").append(unlockedItems).append("/").append(totalItems).append("\n");
+        sb.append("Liquids: ").append(unlockedLiquids).append("/").append(totalLiquids).append("\n");
+    }
+
+    private static void appendSector(StringBuilder sb) {
+        Sector sector = Vars.state.rules.sector;
+        if (sector != null) {
+            sb.append("Current sector: ").append(sector.name()).append("\n");
+            sb.append("Planet: ").append(sector.planet.name).append("\n");
+            sb.append("Threat: ").append(sector.threat).append("\n");
+            if (sector.hasEnemyBase()) {
+                sb.append("Enemy base present\n");
+            }
+        } else {
+            sb.append("Not in campaign mode.\n");
         }
     }
 
