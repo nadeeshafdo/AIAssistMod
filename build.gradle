@@ -5,7 +5,7 @@ def getGitVersion = { ->
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
-            commandLine 'git', 'describe', '--tags', '--always', '--dirty'
+            commandLine 'git', 'describe', '--tags', '--always'
             standardOutput = stdout
         }
         return stdout.toString().trim()
