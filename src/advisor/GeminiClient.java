@@ -69,7 +69,7 @@ public class GeminiClient {
         }
         if (rateLimitCheck(onError)) return;
 
-        String url = API_URL + model + ":streamGenerateContent?key=" + apiKey + "&alt=sse";
+        String url = API_URL + model + ":streamGenerateContent?key=" + apiKey;
         String body = buildRequestBody(systemPrompt, messages);
 
         Thread t = new Thread(() -> {
@@ -79,8 +79,8 @@ public class GeminiClient {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(30000);
-                conn.setReadTimeout(30000);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000);
 
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(body.getBytes(StandardCharsets.UTF_8));
@@ -97,15 +97,24 @@ public class GeminiClient {
                 }
 
                 StringBuilder fullText = new StringBuilder();
+                StringBuilder lineBuf = new StringBuilder();
                 try (BufferedReader br = new BufferedReader(
                         new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = br.readLine()) != null) {
-                        if (!line.startsWith("data: ")) continue;
-                        String data = line.substring(6).trim();
-                        if (data.equals("[DONE]")) break;
+                        line = line.trim();
+                        if (line.isEmpty()) continue;
+                        if (line.equals("[DONE]")) break;
 
-                        String chunk = parseStreamChunk(data);
+                        String jsonStr = null;
+                        if (line.startsWith("data: ")) {
+                            jsonStr = line.substring(6).trim();
+                        } else if (line.startsWith("{")) {
+                            jsonStr = line;
+                        }
+                        if (jsonStr == null) continue;
+
+                        String chunk = parseStreamChunk(jsonStr);
                         if (chunk != null && !chunk.isEmpty()) {
                             fullText.append(chunk);
                             String current = fullText.toString();
