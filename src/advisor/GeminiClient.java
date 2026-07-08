@@ -5,6 +5,9 @@ import arc.func.*;
 import arc.struct.*;
 import arc.util.*;
 import arc.util.serialization.*;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.*;
 
 /**
  * HTTP client for the Google Gemini API.
@@ -39,52 +42,120 @@ public class GeminiClient {
         return model;
     }
 
+    private boolean rateLimitCheck(Cons<String> onError) {
+        long now = Time.millis();
+        if (now - lastRequestTime < MIN_REQUEST_INTERVAL_MS) {
+            Core.app.post(() -> onError.get("Please wait a moment between requests."));
+            return true;
+        }
+        lastRequestTime = now;
+        return false;
+    }
+
     /**
-     * Send a prompt to Gemini with conversation history.
+     * Streaming request to Gemini — tokens arrive incrementally via SSE.
      *
      * @param systemPrompt  System instruction text
-     * @param messages       Array of [role, text] pairs — roles are "user" or "model"
-     * @param onSuccess      Called on main thread with the response text
+     * @param messages       Array of [role, text] pairs
+     * @param onChunk        Called on main thread with full accumulated text so far
+     * @param onComplete     Called on main thread with the full response text
      * @param onError        Called on main thread with the error message
      */
-    public void send(String systemPrompt, String[][] messages, Cons<String> onSuccess, Cons<String> onError) {
+    public void sendStream(String systemPrompt, String[][] messages,
+                           Cons<String> onChunk, Cons<String> onComplete, Cons<String> onError) {
         if (!isConfigured()) {
             Core.app.post(() -> onError.get("API key not configured. Open AI Advisor settings."));
             return;
         }
+        if (rateLimitCheck(onError)) return;
 
-        long now = Time.millis();
-        if (now - lastRequestTime < MIN_REQUEST_INTERVAL_MS) {
-            Core.app.post(() -> onError.get("Please wait a moment between requests."));
-            return;
-        }
-        lastRequestTime = now;
-
-        String url = API_URL + model + ":generateContent?key=" + apiKey;
+        String url = API_URL + model + ":streamGenerateContent?key=" + apiKey + "&alt=sse";
         String body = buildRequestBody(systemPrompt, messages);
 
-        Http.post(url)
-            .timeout(30000)
-            .header("Content-Type", "application/json")
-            .content(body)
-            .error(e -> {
-                String msg = e.getMessage();
-                if (msg == null) msg = "Unknown network error";
-                String finalMsg = msg;
-                Core.app.post(() -> onError.get("Network error: " + finalMsg));
-            })
-            .submit(response -> {
-                try {
-                    String result = response.getResultAsString();
-                    String text = parseResponse(result);
-                    Core.app.post(() -> onSuccess.get(text));
-                } catch (Exception e) {
-                    String msg = e.getMessage();
-                    if (msg == null) msg = "Failed to parse response";
-                    String finalMsg = msg;
-                    Core.app.post(() -> onError.get(finalMsg));
+        Thread t = new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(30000);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(body.getBytes(StandardCharsets.UTF_8));
                 }
-            });
+
+                int status = conn.getResponseCode();
+                if (status != 200) {
+                    String errBody = new String(
+                        (conn.getErrorStream() != null ? conn.getErrorStream() : conn.getInputStream()).readAllBytes(),
+                        StandardCharsets.UTF_8);
+                    String errMsg = parseStreamError(errBody);
+                    Core.app.post(() -> onError.get(errMsg));
+                    return;
+                }
+
+                StringBuilder fullText = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        if (!line.startsWith("data: ")) continue;
+                        String data = line.substring(6).trim();
+                        if (data.equals("[DONE]")) break;
+
+                        String chunk = parseStreamChunk(data);
+                        if (chunk != null && !chunk.isEmpty()) {
+                            fullText.append(chunk);
+                            String current = fullText.toString();
+                            Core.app.post(() -> onChunk.get(current));
+                        }
+                    }
+                }
+                conn.disconnect();
+
+                String result = fullText.toString();
+                Core.app.post(() -> onComplete.get(result));
+            } catch (Exception e) {
+                String msg = e.getMessage();
+                if (msg == null) msg = "Stream error";
+                String finalMsg = msg;
+                Core.app.post(() -> onError.get(finalMsg));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private String parseStreamChunk(String jsonStr) {
+        try {
+            Jval json = Jval.read(jsonStr);
+            if (json.has("error")) {
+                throw new RuntimeException("API error: " + json.get("error").get("message").asString());
+            }
+            Jval candidates = json.get("candidates");
+            if (candidates == null || candidates.asArray().isEmpty()) return null;
+
+            Jval parts = candidates.asArray().get(0).get("content").get("parts");
+            if (parts == null || parts.asArray().isEmpty()) return null;
+
+            return parts.asArray().get(0).get("text").asString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String parseStreamError(String body) {
+        try {
+            Jval json = Jval.read(body);
+            if (json.has("error")) {
+                return "API error: " + json.get("error").get("message").asString();
+            }
+        } catch (Exception ignored) {}
+        return "HTTP error (see logs)";
     }
 
     private String buildRequestBody(String systemPrompt, String[][] messages) {

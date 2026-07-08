@@ -30,6 +30,8 @@ public class AssistantUI {
     private ScrollPane scrollPane;
     private TextField inputField;
     private TextButton sendButton;
+    private TextButton aiButton;
+    private Label lastAILabel;
     private boolean visible = false;
     private boolean waiting = false;
 
@@ -48,13 +50,14 @@ public class AssistantUI {
         chatPanel.setFillParent(false);
         chatPanel.touchable = Touchable.enabled;
 
-        // HUD button
+        // HUD button — hidden when panel is open
         Vars.ui.hudGroup.fill(t -> {
             t.bottom().left();
             t.marginBottom(4f).marginLeft(4f);
-            t.button("[#8cbed6]AI[]", Styles.flatTogglet, () -> {
-                togglePanel();
-            }).size(60f, 40f).checked(b -> visible);
+            aiButton = new TextButton("[#8cbed6]AI[]", Styles.flatTogglet);
+            aiButton.clicked(() -> togglePanel());
+            aiButton.setChecked(visible);
+            t.add(aiButton).size(60f, 40f);
         });
 
         // Build the panel layout
@@ -122,6 +125,9 @@ public class AssistantUI {
     private void togglePanel() {
         visible = !visible;
         chatPanel.visible = visible;
+        if (aiButton != null) {
+            aiButton.visible = !visible;
+        }
         if (visible) {
             buildPanel();
             scrollToBottom();
@@ -162,17 +168,69 @@ public class AssistantUI {
         String systemPrompt = buildSystemPrompt();
         String[][] history = apiMessages.toArray(String[].class);
 
-        mod.getClient().send(systemPrompt, history,
-            response -> {
+        startAIMessage();
+
+        mod.getClient().sendStream(systemPrompt, history,
+            chunk -> updateAIMessage(chunk),
+            fullText -> {
                 setWaiting(false);
-                String cleanText = processCommands(response);
-                addAIMessage(cleanText);
+                finalizeAIMessage(fullText);
             },
             error -> {
                 setWaiting(false);
+                removeLastAIMessage();
                 addErrorMessage(error);
             }
         );
+    }
+
+    private void startAIMessage() {
+        messages.add(new String[]{"model", ""});
+        if (messagesContainer == null) return;
+
+        messagesContainer.table(Styles.black3, row -> {
+            row.margin(6f);
+            lastAILabel = new Label("[#a8e6a1]AI:[]\n");
+            lastAILabel.setWrap(true);
+            lastAILabel.setColor(Color.white);
+            row.add(lastAILabel).growX().left();
+        }).growX().pad(2f).row();
+
+        scrollToBottom();
+    }
+
+    private void updateAIMessage(String text) {
+        if (!messages.isEmpty()) {
+            messages.peek()[1] = text;
+        }
+        if (lastAILabel != null) {
+            lastAILabel.setText("[#a8e6a1]AI:[]\n" + formatMarkdown(text));
+            lastAILabel.layout();
+            scrollToBottom();
+        }
+    }
+
+    private void finalizeAIMessage(String rawText) {
+        String cleanText = processCommands(rawText);
+        if (!messages.isEmpty() && messages.peek()[0].equals("model")) {
+            messages.peek()[1] = cleanText;
+        }
+        if (lastAILabel != null) {
+            lastAILabel.setText("[#a8e6a1]AI:[]\n" + formatMarkdown(cleanText));
+            lastAILabel.layout();
+            scrollToBottom();
+        }
+        lastAILabel = null;
+    }
+
+    private void removeLastAIMessage() {
+        if (!messages.isEmpty() && messages.peek()[0].equals("model") && messages.peek()[1].isEmpty()) {
+            messages.pop();
+        }
+        if (messagesContainer != null && messagesContainer.getChildren().size > 0) {
+            messagesContainer.removeChild(messagesContainer.getChildren().peek());
+        }
+        lastAILabel = null;
     }
 
     private String buildSystemPrompt() {
@@ -208,11 +266,6 @@ public class AssistantUI {
         appendMessageUI("user", text);
     }
 
-    private void addAIMessage(String text) {
-        messages.add(new String[]{"model", text});
-        appendMessageUI("model", text);
-    }
-
     private void addErrorMessage(String text) {
         messages.add(new String[]{"error", text});
         appendMessageUI("error", text);
@@ -243,6 +296,9 @@ public class AssistantUI {
             label.setWrap(true);
             label.setColor(Color.white);
             row.add(label).growX().left();
+            if (role.equals("model")) {
+                lastAILabel = label;
+            }
         }).growX().pad(2f).row();
 
         scrollToBottom();
@@ -270,13 +326,8 @@ public class AssistantUI {
         if (text == null || !text.contains("[!cmd]")) return text;
 
         StringBuilder cleaned = new StringBuilder(text);
-        int executed = 0;
         int start;
         while ((start = cleaned.indexOf("[!cmd]")) != -1) {
-            if (executed >= 5) {
-                cleaned.delete(start, cleaned.indexOf("[/cmd]", start) + 6);
-                continue;
-            }
             int end = cleaned.indexOf("[/cmd]", start);
             if (end == -1) break;
 
@@ -289,7 +340,6 @@ public class AssistantUI {
             } catch (Exception e) {
                 addSystemMessage("[scarlet]!" + cmd.replace("\n", "\\n") + "[] -> Error: " + e.getMessage());
             }
-            executed++;
         }
         return cleaned.toString();
     }
@@ -297,6 +347,7 @@ public class AssistantUI {
     private void rebuildMessages() {
         if (messagesContainer == null) return;
         messagesContainer.clearChildren();
+        lastAILabel = null;
         for (String[] msg : messages) {
             appendMessageUI(msg[0], msg[1]);
         }
