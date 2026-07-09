@@ -19,6 +19,9 @@ version: __VERSION__
 #the minimum game build required to run this mod
 minGameVersion: 154
 
+#this is a client-only mod, excluded from multiplayer compatibility checks
+hidden: true
+
 #this is a java mod
 java: true
 
