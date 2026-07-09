@@ -3,13 +3,12 @@ apply plugin: "java"
 // Derive version from git tags (fallback to 0.0.0 if not a git repo)
 def getGitVersion = { ->
     try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'describe', '--tags', '--always'
-            standardOutput = stdout
-        }
-        return stdout.toString().trim()
-    } catch (Exception ignored) {
+        def proc = 'git describe --tags --always'.execute()
+        proc.waitFor()
+        def ver = proc.text.trim()
+        if (ver.startsWith('v')) ver = ver.substring(1)
+        return ver.isEmpty() ? '0.0.0' : ver
+    } catch (Exception e) {
         return '0.0.0'
     }
 }
