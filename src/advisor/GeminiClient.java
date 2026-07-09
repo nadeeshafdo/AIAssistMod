@@ -15,7 +15,7 @@ import java.nio.charset.*;
  */
 public class GeminiClient {
     private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
-    private static final String DEFAULT_MODEL = "gemini-2.0-flash";
+    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
 
     private String apiKey = "";
     private String model = DEFAULT_MODEL;
