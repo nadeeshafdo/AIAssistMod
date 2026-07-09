@@ -24,6 +24,3 @@ hidden: true
 
 #this is a java mod
 java: true
-
-#mod thumbnail shown in the mod browser
-thumbnail: sprites/aiadvisor.png
