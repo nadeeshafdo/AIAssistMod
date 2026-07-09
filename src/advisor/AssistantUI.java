@@ -50,13 +50,14 @@ public class AssistantUI {
         chatPanel.setFillParent(false);
         chatPanel.touchable = Touchable.enabled;
 
-        // HUD button — hidden when panel is open
+        // HUD button — initially hidden, shown only in campaign
         Vars.ui.hudGroup.fill(t -> {
             t.bottom().left();
             t.marginBottom(4f).marginLeft(4f);
             aiButton = new TextButton("[#8cbed6]AI[]", Styles.flatTogglet);
             aiButton.clicked(() -> togglePanel());
             aiButton.setChecked(visible);
+            aiButton.visible = false;
             t.add(aiButton).size(60f, 40f);
         });
 
@@ -65,8 +66,31 @@ public class AssistantUI {
 
         // Add the panel to the HUD group
         Vars.ui.hudGroup.addChild(chatPanel);
+    }
 
-        addSystemMessage("AI Advisor ready. Type a question or tap [accent]Analyze[].");
+    /** Show/hide the AI button and panel based on game mode. */
+    public void updateVisibility() {
+        boolean campaign = Vars.state != null && Vars.state.isCampaign() && Vars.player != null;
+        if (campaign) {
+            show();
+        } else {
+            hide();
+        }
+    }
+
+    private void show() {
+        if (aiButton != null) aiButton.visible = !visible;
+        if (visible) {
+            chatPanel.visible = true;
+        }
+    }
+
+    private void hide() {
+        if (visible) {
+            visible = false;
+            chatPanel.visible = false;
+        }
+        if (aiButton != null) aiButton.visible = false;
     }
 
     private void buildPanel() {
@@ -143,6 +167,7 @@ public class AssistantUI {
 
     public void sendQuery(String query) {
         if (waiting) return;
+        if (!isCampaign()) return;
         if (!mod.getClient().isConfigured()) {
             showApiKeyDialog();
             return;
@@ -374,6 +399,10 @@ public class AssistantUI {
             sendButton.setDisabled(w);
             sendButton.setText(w ? "..." : "Send");
         }
+    }
+
+    private boolean isCampaign() {
+        return Vars.state != null && Vars.state.isCampaign() && !Vars.net.active();
     }
 
     /** Show a dialog to enter the API key and configure options. */

@@ -497,7 +497,7 @@ public class CommandHandler {
     }
 
     private static boolean canExecute() {
-        return Vars.state != null && Vars.state.isPlaying() && Vars.player != null;
+        return Vars.state != null && Vars.state.isCampaign() && Vars.player != null;
     }
 
     public static String helpText() {

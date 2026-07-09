@@ -37,6 +37,16 @@ public class AdvisorMod extends Mod {
                 Time.runTask(60f, () -> ui.showApiKeyDialog());
             }
         });
+
+        // Show AI button only in campaign mode
+        Events.on(WorldLoadEvent.class, e -> {
+            if (ui != null) ui.updateVisibility();
+        });
+
+        // Hide UI when returning to menu
+        Events.on(ResetEvent.class, e -> {
+            if (ui != null) ui.updateVisibility();
+        });
     }
 
     @Override
