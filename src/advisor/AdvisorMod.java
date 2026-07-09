@@ -25,12 +25,7 @@ public class AdvisorMod extends Mod {
             }
 
             // Load model from settings
-            String savedModel = Core.settings.getString("ai-advisor-model", "gemma-4-31b-it");
-            if (savedModel.equals("gemini-2.0-flash-lite") || savedModel.equals("gemini-2.0-flash") || savedModel.equals("gemini-flash-latest")) {
-                savedModel = "gemma-4-31b-it";
-                Core.settings.put("ai-advisor-model", savedModel);
-                Core.settings.manualSave();
-            }
+            String savedModel = Core.settings.getString("ai-advisor-model", "gemini-2.0-flash");
             client.setModel(savedModel);
 
             // Build the UI
