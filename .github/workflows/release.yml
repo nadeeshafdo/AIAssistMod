@@ -22,15 +22,20 @@ jobs:
           java-version: 17
           distribution: temurin
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build desktop JAR
-        run: ./gradlew jar
+      - name: Build multi-platform JAR (Desktop + Android)
+        run: ./gradlew deploy
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/libs/AIAssistModDesktop.jar
+          files: |
+            build/libs/AIAssistMod.jar
+            build/libs/AIAssistModDesktop.jar
           generate_release_notes: true
           make_latest: true

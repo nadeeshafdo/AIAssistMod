@@ -73,8 +73,6 @@ public class GeminiClient {
                 // Streaming succeeded
                 if (streamResult.isEmpty()) {
                     Log.warn("[AI Advisor] Stream returned empty, trying non-streaming fallback...");
-                    // Reset waiting state — the fallback will re-trigger it
-                    Core.app.post(() -> onChunk.get(""));
                 } else {
                     Core.app.post(() -> onComplete.get(streamResult));
                     return;

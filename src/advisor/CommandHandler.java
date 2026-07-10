@@ -16,7 +16,7 @@ public class CommandHandler {
         String trimmed = raw.trim();
         if (trimmed.isEmpty()) return "Empty command.";
 
-        String[] parts = trimmed.split("\\s+", 3);
+        String[] parts = trimmed.split("\\s+", 4);
         String cmd = parts[0].toLowerCase();
 
         return switch (cmd) {
@@ -295,7 +295,7 @@ public class CommandHandler {
             case "snow" -> tryScript(
                 "Vars.state.rules.rain=false;Vars.state.rules.snow=true;Vars.state.rules.spores=false;'Weather set to snow.'");
             case "rain" -> tryScript(
-                "Vars.state.rules.rain=false;Vars.state.rules.snow=false;Vars.state.rules.spores=false;'Weather set to rain.'");
+                "Vars.state.rules.rain=true;Vars.state.rules.snow=false;Vars.state.rules.spores=false;'Weather set to rain.'");
             case "spore" -> tryScript(
                 "Vars.state.rules.rain=false;Vars.state.rules.snow=false;Vars.state.rules.spores=true;'Weather set to spore.'");
             case "none", "clear" -> tryScript(
