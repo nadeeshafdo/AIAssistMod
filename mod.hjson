@@ -20,5 +20,11 @@ version: __VERSION__
 minGameVersion: 154
 
 
+#this is a client-only mod, excluded from multiplayer compatibility checks
+hidden: true
+
+#override the default "Multiplayer Compatible" subtitle
+subtitle: "Campaign Only"
+
 #this is a java mod
 java: true
