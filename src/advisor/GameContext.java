@@ -148,7 +148,7 @@ public class GameContext {
         int generators = 0;
         int consumers = 0;
 
-        Groups.build.each(b -> {
+        for (Building b : Groups.build) {
             if (b.team == team) {
                 // Building counts
                 String cat = b.block.category != null ? b.block.category.name() : "other";
@@ -170,7 +170,7 @@ public class GameContext {
                     }
                 }
             }
-        });
+        }
 
         if (categories.isEmpty()) {
             sb.append("No buildings.\n");
