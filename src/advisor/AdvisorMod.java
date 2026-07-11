@@ -15,13 +15,17 @@ public class AdvisorMod extends Mod {
     private AssistantUI ui;
 
     public AdvisorMod() {
-        Log.info("[AI Advisor] Mod loaded.");
-
         Events.on(ClientLoadEvent.class, e -> {
+            AdvisorLogger.init();
+            AdvisorLogger.debug("Mod loaded. Reading settings...");
+
             // Load API key from settings
             String savedKey = Core.settings.getString("ai-advisor-apikey", "");
             if (!savedKey.isEmpty()) {
                 client.setApiKey(savedKey);
+                AdvisorLogger.debug("API key loaded from settings.");
+            } else {
+                AdvisorLogger.debug("No API key found in settings.");
             }
 
             // Load model from settings

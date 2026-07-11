@@ -15,11 +15,13 @@ public class CommandHandler {
     public static String execute(String raw) {
         String trimmed = raw.trim();
         if (trimmed.isEmpty()) return "Empty command.";
+        
+        AdvisorLogger.debug("Executing command: " + raw);
 
         String[] parts = trimmed.split("\\s+", 4);
         String cmd = parts[0].toLowerCase();
 
-        return switch (cmd) {
+        String result = switch (cmd) {
             case "spawn" -> cmdSpawn(parts);
             case "give" -> cmdGive(parts);
             case "setwave" -> cmdSetWave(parts);
@@ -45,6 +47,9 @@ public class CommandHandler {
                     : "Unknown command: " + cmd + ". Wrap any command in [!cmd]...[/cmd].";
             }
         };
+        
+        AdvisorLogger.debug("Command [" + cmd + "] result: " + result);
+        return result;
     }
 
     // --- SPAWN ---

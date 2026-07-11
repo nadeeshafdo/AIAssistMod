@@ -152,6 +152,7 @@ public class AssistantUI {
         if (aiButton != null) {
             aiButton.visible = !visible;
         }
+        AdvisorLogger.debug("Chat panel toggled. Visible: " + visible);
         if (visible) {
             buildPanel();
             scrollToBottom();
@@ -190,7 +191,8 @@ public class AssistantUI {
             apiMessages.remove(0);
         }
 
-        String systemPrompt = buildSystemPrompt();
+        String contextSnapshot = GameContext.collect();
+        String systemPrompt = buildSystemPrompt(contextSnapshot);
         String[][] history = apiMessages.toArray(String[].class);
 
         startAIMessage();
@@ -200,11 +202,13 @@ public class AssistantUI {
             fullText -> {
                 setWaiting(false);
                 finalizeAIMessage(fullText);
+                AdvisorLogger.logConversation(query, contextSnapshot, fullText);
             },
             error -> {
                 setWaiting(false);
                 removeLastAIMessage();
                 addErrorMessage(error);
+                AdvisorLogger.error("API error during query: " + error, null);
             }
         );
     }
@@ -258,7 +262,7 @@ public class AssistantUI {
         lastAILabel = null;
     }
 
-    private String buildSystemPrompt() {
+    private String buildSystemPrompt(String contextSnapshot) {
         StringBuilder sb = new StringBuilder();
         sb.append("You are an expert Mindustry game advisor embedded directly into the game. ");
         sb.append("You have deep knowledge of all Mindustry mechanics: resource chains, production ratios, ");
@@ -280,7 +284,7 @@ public class AssistantUI {
         sb.append("  setwave <number>       — set current wave\n");
         sb.append("  heal                   — heal all player units and core\n\n");
         sb.append("--- CURRENT GAME STATE ---\n");
-        sb.append(GameContext.collect());
+        sb.append(contextSnapshot);
         return sb.toString();
     }
 
@@ -473,6 +477,7 @@ public class AssistantUI {
                     Core.settings.manualSave();
                     modelLabel.setText("Current Model: [accent]" + name + "[]");
                     addSystemMessage("Switched model to: [accent]" + name + "[]");
+                    AdvisorLogger.debug("User changed model to: " + name);
                     listDialog.hide();
                 }).growX().height(55f).left().pad(4f).row();
             }

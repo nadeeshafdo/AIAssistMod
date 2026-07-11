@@ -72,7 +72,7 @@ public class GeminiClient {
             if (streamResult != null) {
                 // Streaming succeeded
                 if (streamResult.isEmpty()) {
-                    Log.warn("[AI Advisor] Stream returned empty, trying non-streaming fallback...");
+                    AdvisorLogger.debug("Stream returned empty, trying non-streaming fallback...");
                 } else {
                     Core.app.post(() -> onComplete.get(streamResult));
                     return;
@@ -108,7 +108,7 @@ public class GeminiClient {
                     (conn.getErrorStream() != null ? conn.getErrorStream() : conn.getInputStream()).readAllBytes(),
                     StandardCharsets.UTF_8);
                 String errMsg = parseApiError(errBody);
-                Log.err("[AI Advisor] Stream API error " + status + ": " + errMsg);
+                AdvisorLogger.debug("Stream API error " + status + ": " + errMsg);
                 // Don't fire onError here — caller will try non-streaming fallback
                 return "";
             }
@@ -131,7 +131,7 @@ public class GeminiClient {
                         // Some endpoints return a JSON array instead of SSE
                         jsonStr = rawLine;
                     } else {
-                        Log.warn("[AI Advisor] Unrecognized SSE line: " + rawLine.substring(0, Math.min(80, rawLine.length())));
+                        AdvisorLogger.debug("Unrecognized SSE line: " + rawLine.substring(0, Math.min(80, rawLine.length())));
                         continue;
                     }
 
@@ -146,15 +146,15 @@ public class GeminiClient {
             }
 
             String result = fullText.toString();
-            Log.info("[AI Advisor] Stream finished: " + chunkCount + " chunks, " + result.length() + " chars");
+            AdvisorLogger.debug("Stream finished: " + chunkCount + " chunks, " + result.length() + " chars");
             if (result.isEmpty()) {
-                Log.warn("[AI Advisor] All parsed chunks were empty/null");
+                AdvisorLogger.debug("All parsed chunks were empty/null");
             }
             return result;
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg == null) msg = "Stream error";
-            Log.err("[AI Advisor] Stream exception: " + msg);
+            AdvisorLogger.error("Stream exception: " + msg, e);
             return "";
         } finally {
             if (conn != null) conn.disconnect();
@@ -183,14 +183,14 @@ public class GeminiClient {
                     (conn.getErrorStream() != null ? conn.getErrorStream() : conn.getInputStream()).readAllBytes(),
                     StandardCharsets.UTF_8);
                 String errMsg = parseApiError(errBody);
-                Log.err("[AI Advisor] Non-streaming API error " + status + ": " + errMsg);
+                AdvisorLogger.debug("Non-streaming API error " + status + ": " + errMsg);
                 Core.app.post(() -> onError.get(errMsg));
                 return;
             }
 
             String responseBody = new String(conn.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             String result = parseResponse(responseBody);
-            Log.info("[AI Advisor] Non-streaming response: " + result.length() + " chars");
+            AdvisorLogger.debug("Non-streaming response: " + result.length() + " chars");
 
             // Deliver as a single chunk
             Core.app.post(() -> onChunk.get(result));
@@ -198,7 +198,7 @@ public class GeminiClient {
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg == null) msg = "Non-streaming error";
-            Log.err("[AI Advisor] Non-streaming exception: " + msg);
+            AdvisorLogger.error("Non-streaming exception: " + msg, e);
             String finalMsg = msg;
             Core.app.post(() -> onError.get(finalMsg));
         } finally {
@@ -217,7 +217,7 @@ public class GeminiClient {
 
             Jval json = Jval.read(jsonStr);
             if (json.has("error")) {
-                Log.warn("[AI Advisor] Stream chunk contains error: " + json.get("error").get("message").asString());
+                AdvisorLogger.debug("Stream chunk contains error: " + json.get("error").get("message").asString());
                 return null;
             }
             Jval candidates = json.get("candidates");
@@ -234,7 +234,7 @@ public class GeminiClient {
 
             return text.asString();
         } catch (Exception e) {
-            Log.warn("[AI Advisor] Failed to parse stream chunk: " + e.getMessage()
+            AdvisorLogger.debug("Failed to parse stream chunk: " + e.getMessage()
                 + " | json=" + jsonStr.substring(0, Math.min(120, jsonStr.length())));
             return null;
         }
