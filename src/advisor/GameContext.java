@@ -29,12 +29,8 @@ public class GameContext {
         appendGameTime(sb);
         sb.append("\n=== RESOURCES IN CORE ===\n");
         appendResources(sb);
-        sb.append("\n=== BUILDINGS ===\n");
-        appendBuildings(sb);
-        sb.append("\n=== UNITS ===\n");
-        appendUnits(sb);
-        sb.append("\n=== POWER GRID ===\n");
-        appendPower(sb);
+        sb.append("\n=== BUILDINGS & POWER ===\n");
+        appendBuildingsAndPower(sb);
         sb.append("\n=== TECH TREE ===\n");
         appendTechTree(sb);
         sb.append("\n=== SECTOR ===\n");
@@ -80,18 +76,22 @@ public class GameContext {
         int unlockedLiquids = 0, totalLiquids = 0;
 
         for (Block block : Vars.content.blocks()) {
+            if (block.isHidden()) continue;
             totalBlocks++;
             if (block.unlocked()) unlockedBlocks++;
         }
         for (UnitType type : Vars.content.units()) {
+            if (type.isHidden()) continue;
             totalUnits++;
             if (type.unlocked()) unlockedUnits++;
         }
         for (Item item : Vars.content.items()) {
+            if (item.isHidden()) continue;
             totalItems++;
             if (item.unlocked()) unlockedItems++;
         }
         for (Liquid liquid : Vars.content.liquids()) {
+            if (liquid.isHidden()) continue;
             totalLiquids++;
             if (liquid.unlocked()) unlockedLiquids++;
         }
@@ -135,94 +135,57 @@ public class GameContext {
         if (!any) sb.append("Empty.\n");
     }
 
-    private static void appendBuildings(StringBuilder sb) {
+    private static void appendBuildingsAndPower(StringBuilder sb) {
         Team team = playerTeam();
         if (team == null) {
-            sb.append("No buildings.\n");
+            sb.append("No buildings or power data.\n");
             return;
         }
 
-        // Count buildings by block type, grouped by category
         OrderedMap<String, ObjectIntMap<String>> categories = new OrderedMap<>();
-
-        Groups.build.each(b -> {
-            if (b.team == team) {
-                String cat = b.block.category != null ? b.block.category.name() : "other";
-                String name = b.block.localizedName;
-                categories.get(cat, ObjectIntMap::new).increment(name);
-            }
-        });
-
-        if (categories.isEmpty()) {
-            sb.append("No buildings.\n");
-            return;
-        }
-
-        for (var catEntry : categories.entries()) {
-            sb.append("[").append(capitalize(catEntry.key)).append("] ");
-            Seq<String> entryList = new Seq<>();
-            for (var e : catEntry.value.entries()) {
-                entryList.add(e.key + " x" + e.value);
-            }
-            sb.append(entryList.toString(", ")).append("\n");
-        }
-    }
-
-    private static void appendUnits(StringBuilder sb) {
-        Team team = playerTeam();
-        if (team == null) {
-            sb.append("No units.\n");
-            return;
-        }
-
-        ObjectIntMap<String> unitCounts = new ObjectIntMap<>();
-        Groups.unit.each(u -> {
-            if (u.team == team) {
-                unitCounts.increment(u.type.localizedName);
-            }
-        });
-
-        if (unitCounts.isEmpty()) {
-            sb.append("No units.\n");
-            return;
-        }
-
-        Seq<String> entries = new Seq<>();
-        for (var e : unitCounts.entries()) {
-            entries.add(e.key + " x" + e.value);
-        }
-        sb.append(entries.toString(", ")).append("\n");
-    }
-
-    private static void appendPower(StringBuilder sb) {
-        Team team = playerTeam();
-        if (team == null) {
-            sb.append("No power data.\n");
-            return;
-        }
-
         float totalProduction = 0;
         float totalConsumption = 0;
         int generators = 0;
         int consumers = 0;
 
-        for (Building b : Groups.build) {
-            if (b.team != team || b.power == null) continue;
+        Groups.build.each(b -> {
+            if (b.team == team) {
+                // Building counts
+                String cat = b.block.category != null ? b.block.category.name() : "other";
+                categories.get(cat, ObjectIntMap::new).increment(b.block.localizedName);
 
-            if (b.block.consPower != null) {
-                float usage = b.block.consPower.usage;
-                if (usage > 0) {
-                    totalConsumption += usage * 60f;
-                    consumers++;
+                // Power calculations
+                if (b.power != null) {
+                    if (b.block.consPower != null) {
+                        float usage = b.block.consPower.usage;
+                        if (usage > 0) {
+                            totalConsumption += usage * 60f;
+                            consumers++;
+                        }
+                    }
+
+                    if (b instanceof PowerGenerator.GeneratorBuild gen) {
+                        totalProduction += gen.productionEfficiency * ((PowerGenerator) b.block).powerProduction * 60f;
+                        generators++;
+                    }
                 }
             }
+        });
 
-            if (b instanceof PowerGenerator.GeneratorBuild gen) {
-                totalProduction += gen.productionEfficiency * ((PowerGenerator) b.block).powerProduction * 60f;
-                generators++;
+        if (categories.isEmpty()) {
+            sb.append("No buildings.\n");
+        } else {
+            for (var catEntry : categories.entries()) {
+                sb.append("[").append(capitalize(catEntry.key)).append("] ");
+                Seq<String> entryList = new Seq<>();
+                for (var e : catEntry.value.entries()) {
+                    entryList.add(e.key + " x" + e.value);
+                }
+                sb.append(entryList.toString(", ")).append("\n");
             }
         }
 
+        sb.append("\n[Power Grid]\n");
         sb.append("Generators: ").append(generators).append(" (est. ").append(String.format("%.1f", totalProduction)).append("/s)\n");
         sb.append("Consumers: ").append(consumers).append(" (est. ").append(String.format("%.1f", totalConsumption)).append("/s)\n");
         float balance = totalProduction - totalConsumption;

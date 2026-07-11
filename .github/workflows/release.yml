@@ -34,8 +34,6 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            build/libs/AIAssistMod.jar
-            build/libs/AIAssistModDesktop.jar
+          files: build/libs/AIAssistMod.jar
           generate_release_notes: true
           make_latest: true
