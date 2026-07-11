@@ -143,8 +143,7 @@ public class GameContext {
         }
 
         OrderedMap<String, ObjectIntMap<String>> categories = new OrderedMap<>();
-        float totalProduction = 0;
-        float totalConsumption = 0;
+        ObjectSet<mindustry.world.blocks.power.PowerGraph> grids = new ObjectSet<>();
         int generators = 0;
         int consumers = 0;
 
@@ -156,20 +155,23 @@ public class GameContext {
 
                 // Power calculations
                 if (b.power != null) {
-                    if (b.block.consPower != null) {
-                        float usage = b.block.consPower.usage;
-                        if (usage > 0) {
-                            totalConsumption += usage * 60f;
-                            consumers++;
-                        }
-                    }
+                    grids.add(b.power.graph);
 
-                    if (b instanceof PowerGenerator.GeneratorBuild gen) {
-                        totalProduction += gen.productionEfficiency * ((PowerGenerator) b.block).powerProduction * 60f;
+                    if (b.block.consPower != null && b.block.consPower.usage > 0) {
+                        consumers++;
+                    }
+                    if (b instanceof PowerGenerator.GeneratorBuild) {
                         generators++;
                     }
                 }
             }
+        }
+
+        float totalProduction = 0;
+        float totalConsumption = 0;
+        for (mindustry.world.blocks.power.PowerGraph g : grids) {
+            totalProduction += g.getPowerProduced() * 60f;
+            totalConsumption += g.getPowerNeeded() * 60f;
         }
 
         if (categories.isEmpty()) {
